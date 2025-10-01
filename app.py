@@ -14,6 +14,7 @@ load_dotenv()
 CLIENT_ID = os.getenv("CLIENT_ID")
 CLIENT_SECRET = os.getenv("CLIENT_SECRET")
 
+
 if not CLIENT_ID or not CLIENT_SECRET:
     st.error("⚠ CLIENT_ID and CLIENT_SECRET not found in .env file")
     st.stop()

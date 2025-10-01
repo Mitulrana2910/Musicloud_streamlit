@@ -13,8 +13,6 @@ env/
 .venv/
 .env/
 
-# Pickle files (data storage)
-*.pkl
 
 # Streamlit cache
 .streamlit/
