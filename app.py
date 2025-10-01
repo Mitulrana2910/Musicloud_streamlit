@@ -1,3 +1,4 @@
+import joblib
 from dotenv import load_dotenv
 import os
 import pickle
@@ -6,6 +7,18 @@ import spotipy
 from spotipy.oauth2 import SpotifyClientCredentials
 import json
 from datetime import datetime
+import requests
+
+url_df = "https://drive.google.com/file/d/1CRDB401zws9N7lLycOrXzOSDH7GSuLZS/view?usp=sharing"
+url_similarity = "https://drive.google.com/file/d/1vA4AeZu8eTLc6b1H1aCiOS32WLT4a47A/view?usp=sharing"
+
+if not os.path.exists("df.pkl"):
+    r = requests.get(url_df)
+    open("df.pkl", "wb").write(r.content)
+
+if not os.path.exists("similarity.pkl"):
+    r = requests.get(url_similarity)
+    open("similarity.pkl", "wb").write(r.content)
 
 # --------------------------
 # Load Environment Variables
@@ -50,8 +63,8 @@ def recommend(song):
     return recommended_music_names, recommended_music_posters
 
 # Load music data
-music = pickle.load(open('df.pkl','rb'))
-similarity = pickle.load(open('similarity.pkl','rb'))
+music = joblib.load('df.pkl')
+similarity = joblib.load('similarity.pkl')
 music_list = music['song'].values
 
 # --------------------------
