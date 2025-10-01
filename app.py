@@ -1,50 +1,53 @@
-import joblib
-from dotenv import load_dotenv
 import os
-import pickle
+import joblib
+import requests
+from dotenv import load_dotenv
 import streamlit as st
 import spotipy
 from spotipy.oauth2 import SpotifyClientCredentials
 import json
 from datetime import datetime
-import requests
-"""url_df = "https://drive.google.com/uc?export=download&id=1CRDB401zws9N7lLycOrXzOSDH7GSuLZS"
-url_similarity = "https://drive.google.com/uc?export=download&id=1vA4AeZu8eTLc6b1H1aCiOS32WLT4a47A"
-"""
+
+# --------------------------
+# URLs for .pkl files
+# --------------------------
+URL_DF = "https://drive.google.com/uc?export=download&id=1CRDB401zws9N7lLycOrXzOSDH7GSuLZS"
+URL_SIMILARITY = "https://drive.google.com/uc?export=download&id=1vA4AeZu8eTLc6b1H1aCiOS32WLT4a47A"
+
+# --------------------------
+# Download function
+# --------------------------
 def download_file(url, local_path):
     if not os.path.exists(local_path):
-        print(f"Downloading {local_path}...")
+        st.info(f"Downloading {local_path}...")
         r = requests.get(url, stream=True)
-        with open(local_path, 'wb') as f:
+        with open(local_path, "wb") as f:
             for chunk in r.iter_content(chunk_size=8192):
                 if chunk:
                     f.write(chunk)
-        print(f"{local_path} downloaded.")
+        st.success(f"{local_path} downloaded.")
     else:
-        print(f"{local_path} already exists.")
-
-# Download files if missing
-download_file("https://drive.google.com/uc?export=download&id=1CRDB401zws9N7lLycOrXzOSDH7GSuLZS", "df.pkl")
-download_file("https://drive.google.com/uc?export=download&id=1vA4AeZu8eTLc6b1H1aCiOS32WLT4a47A", "similarity.pkl")
-
-import pickle
-music = pickle.load(open('df.pkl','rb'))
-similarity = pickle.load(open('similarity.pkl','rb'))
-if not os.path.exists("df.pkl"):
-    r = requests.get(url_df)
-    open("df.pkl", "wb").write(r.content)
-
-if not os.path.exists("similarity.pkl"):
-    r = requests.get(url_similarity)
-    open("similarity.pkl", "wb").write(r.content)
+        st.info(f"{local_path} already exists.")
 
 # --------------------------
-# Load Environment Variables
+# Download necessary files
+# --------------------------
+download_file(URL_DF, "df.pkl")
+download_file(URL_SIMILARITY, "similarity.pkl")
+
+# --------------------------
+# Load models/data
+# --------------------------
+music = joblib.load("df.pkl")
+similarity = joblib.load("similarity.pkl")
+music_list = music['song'].values
+
+# --------------------------
+# Load environment variables
 # --------------------------
 load_dotenv()
 CLIENT_ID = os.getenv("CLIENT_ID")
 CLIENT_SECRET = os.getenv("CLIENT_SECRET")
-
 
 if not CLIENT_ID or not CLIENT_SECRET:
     st.error("⚠ CLIENT_ID and CLIENT_SECRET not found in .env file")
@@ -53,7 +56,10 @@ if not CLIENT_ID or not CLIENT_SECRET:
 # --------------------------
 # Spotify Client
 # --------------------------
-client_credentials_manager = SpotifyClientCredentials(client_id=CLIENT_ID, client_secret=CLIENT_SECRET)
+client_credentials_manager = SpotifyClientCredentials(
+    client_id=CLIENT_ID,
+    client_secret=CLIENT_SECRET
+)
 sp = spotipy.Spotify(client_credentials_manager=client_credentials_manager)
 
 # --------------------------
@@ -79,11 +85,6 @@ def recommend(song):
         recommended_music_posters.append(get_song_album_cover_url(music.iloc[i[0]].song, artist))
         recommended_music_names.append(music.iloc[i[0]].song)
     return recommended_music_names, recommended_music_posters
-
-# Load music data
-music = joblib.load('df.pkl')
-similarity = joblib.load('similarity.pkl')
-music_list = music['song'].values
 
 # --------------------------
 # Playlist Functions
@@ -149,9 +150,9 @@ def participate(event_id, user_name):
     for event in events:
         if event["event_id"] == event_id:
             if user_name in event["participants"]:
-                return False  # Already joined
+                return False
             if len(event["participants"]) >= event["capacity"]:
-                return False  # Event full
+                return False
             event["participants"].append(user_name)
             save_events(events)
             st.session_state["events"] = events
@@ -161,35 +162,26 @@ def participate(event_id, user_name):
 def delete_event(event_id):
     events = st.session_state.get("events", load_events())
     events = [event for event in events if event["event_id"] != event_id]
-    # Reassign event IDs
     for idx, event in enumerate(events):
         event["event_id"] = idx + 1
     save_events(events)
     st.session_state["events"] = events
 
 # --------------------------
-# STREAMLIT UI
+# Streamlit UI
 # --------------------------
 st.set_page_config(page_title="Musicloud", layout="wide")
 st.title("Musicloud")
 
-# Initialize session state
 if "playlist" not in st.session_state:
     st.session_state["playlist"] = load_playlist()
 if "events" not in st.session_state:
     st.session_state["events"] = load_events()
 
-# Sidebar menu
 menu = st.sidebar.selectbox("Menu", ["Music Recommender", "Playlist Management", "Event Management"])
 
-# --------------------------
-# Music Recommender Section
-# --------------------------
 if menu == "Music Recommender":
     selected_song = st.selectbox("Search or type a song", music_list)
-
-    recommended_music_names = []
-    recommended_music_posters = []
 
     if st.button("Show Recommendation"):
         recommended_music_names, recommended_music_posters = recommend(selected_song)
@@ -202,12 +194,8 @@ if menu == "Music Recommender":
                 add_to_playlist(recommended_music_names[idx], artist)
                 st.success(f"'{recommended_music_names[idx]}' added to your playlist!")
 
-# --------------------------
-# Playlist Management Section
-# --------------------------
 elif menu == "Playlist Management":
     st.header("Playlist Management")
-
     playlist_action = st.radio("Choose Action", ["View Playlist", "Clear Playlist"])
 
     if playlist_action == "View Playlist":
@@ -215,7 +203,7 @@ elif menu == "Playlist Management":
         if playlist:
             st.subheader("Your Playlist")
             for idx, item in enumerate(playlist):
-                st.write(f"**{idx+1}. {item['song']}** — {item['artist']}  🎧 [Listen on Spotify](https://open.spotify.com/search/{item['song']}%20{item['artist']})")
+                st.write(f"**{idx+1}. {item['song']}** — {item['artist']} 🎧 [Listen on Spotify](https://open.spotify.com/search/{item['song']}%20{item['artist']})")
             st.write("---")
         else:
             st.info("Your playlist is empty.")
@@ -226,12 +214,8 @@ elif menu == "Playlist Management":
             st.session_state["playlist"] = []
             st.success("Playlist cleared successfully!")
 
-# --------------------------
-# Event Management Section
-# --------------------------
 elif menu == "Event Management":
     st.header("Event Management System")
-
     event_action = st.radio("Choose Action", ["Add Event", "View Events"])
 
     if event_action == "Add Event":
@@ -252,67 +236,35 @@ elif menu == "Event Management":
             else:
                 st.error("⚠ Please fill all fields")
 
-
     elif event_action == "View Events":
-
         st.subheader("Available Events")
-
         events = st.session_state.get("events", load_events())
-
         if not events:
-
             st.info("No events available.")
-
         else:
-
             for event in events:
-
                 st.markdown(f"### {event['event_name']}")
-
                 st.write(f"Time: {event['event_time']}")
-
-                st.write(f"Participants: {len(event['participants'])} / Capacity: {event['capacity']}")
-
+                st.write(f"Capacity: {event['capacity']}")
+                st.write(f"Participants: {len(event['participants'])}")
                 st.write(f"Charges: ${event['charges']}")
-
-                # Check if event is full
-
                 is_full = len(event["participants"]) >= event["capacity"]
 
                 with st.form(key=f"participate_form_{event['event_id']}"):
-
                     user_name = st.text_input("Enter your name to participate", key=f"name_{event['event_id']}")
-
-                    submitted = st.form_submit_button(
-
-                        f"Participate in {event['event_name']}",
-
-                        disabled=is_full
-
-                    )
-
+                    submitted = st.form_submit_button(f"Participate in {event['event_name']}", disabled=is_full)
                     if submitted:
-
                         if user_name:
-
                             if participate(event["event_id"], user_name):
-
                                 st.success(f"You joined {event['event_name']}!")
-
                             else:
-
                                 st.error("You are already participating or event is full!")
-
                         else:
-
                             st.warning("⚠ Please enter your name to participate")
 
                 if is_full:
                     st.warning("⚠ This event is full. No more participants can join.")
 
-                # Delete Event Button
-
                 if st.button(f"🗑 Delete {event['event_name']}", key=f"delete_{event['event_id']}"):
                     delete_event(event["event_id"])
-
                     st.success(f"🗑 Event '{event['event_name']}' deleted successfully!")
