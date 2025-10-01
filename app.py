@@ -8,18 +8,28 @@ from spotipy.oauth2 import SpotifyClientCredentials
 import json
 from datetime import datetime
 import requests
-
-def download_file(url, filename):
-    if not os.path.exists(filename):
-        print(f"Downloading {filename}...")
-        r = requests.get(url, stream=True)
-        with open(filename, "wb") as f:
-            for chunk in r.iter_content(chunk_size=8192):
-                f.write(chunk)
-
-url_df = "https://drive.google.com/uc?export=download&id=1CRDB401zws9N7lLycOrXzOSDH7GSuLZS"
+"""url_df = "https://drive.google.com/uc?export=download&id=1CRDB401zws9N7lLycOrXzOSDH7GSuLZS"
 url_similarity = "https://drive.google.com/uc?export=download&id=1vA4AeZu8eTLc6b1H1aCiOS32WLT4a47A"
+"""
+def download_file(url, local_path):
+    if not os.path.exists(local_path):
+        print(f"Downloading {local_path}...")
+        r = requests.get(url, stream=True)
+        with open(local_path, 'wb') as f:
+            for chunk in r.iter_content(chunk_size=8192):
+                if chunk:
+                    f.write(chunk)
+        print(f"{local_path} downloaded.")
+    else:
+        print(f"{local_path} already exists.")
 
+# Download files if missing
+download_file("https://drive.google.com/uc?export=download&id=1CRDB401zws9N7lLycOrXzOSDH7GSuLZS", "df.pkl")
+download_file("https://drive.google.com/uc?export=download&id=1vA4AeZu8eTLc6b1H1aCiOS32WLT4a47A", "similarity.pkl")
+
+import pickle
+music = pickle.load(open('df.pkl','rb'))
+similarity = pickle.load(open('similarity.pkl','rb'))
 if not os.path.exists("df.pkl"):
     r = requests.get(url_df)
     open("df.pkl", "wb").write(r.content)
