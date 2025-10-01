@@ -8,15 +8,15 @@ from spotipy.oauth2 import SpotifyClientCredentials
 import json
 from datetime import datetime
 
-# --------------------------
+
 # URLs for .pkl files
-# --------------------------
+
 URL_DF = "https://drive.google.com/uc?export=download&id=1CRDB401zws9N7lLycOrXzOSDH7GSuLZS"
 URL_SIMILARITY = "https://drive.google.com/uc?export=download&id=1vA4AeZu8eTLc6b1H1aCiOS32WLT4a47A"
 
-# --------------------------
+
 # Download function
-# --------------------------
+
 def download_file(url, local_path):
     if not os.path.exists(local_path):
         r = requests.get(url, stream=True)
@@ -25,22 +25,22 @@ def download_file(url, local_path):
                 if chunk:
                     f.write(chunk)
 
-# --------------------------
+
 # Download necessary files
-# --------------------------
+
 download_file(URL_DF, "df.pkl")
 download_file(URL_SIMILARITY, "similarity.pkl")
 
-# --------------------------
+
 # Load models/data
-# --------------------------
+
 music = joblib.load("df.pkl")
 similarity = joblib.load("similarity.pkl")
 music_list = music['song'].values
 
-# --------------------------
+
 # Load environment variables
-# --------------------------
+
 load_dotenv()
 CLIENT_ID = os.getenv("CLIENT_ID")
 CLIENT_SECRET = os.getenv("CLIENT_SECRET")
@@ -49,42 +49,39 @@ if not CLIENT_ID or not CLIENT_SECRET:
     st.error("⚠ CLIENT_ID and CLIENT_SECRET not found in .env file")
     st.stop()
 
-# --------------------------
+
 # Spotify Client
-# --------------------------
+
 client_credentials_manager = SpotifyClientCredentials(
     client_id=CLIENT_ID,
     client_secret=CLIENT_SECRET
 )
 sp = spotipy.Spotify(client_credentials_manager=client_credentials_manager)
 
-# --------------------------
+
 # Music Recommender Functions
-# --------------------------
+
 def get_song_album_cover_url(song_name, artist_name):
     search_query = f"track:{song_name} artist:{artist_name}"
     results = sp.search(q=search_query, type="track", limit=1)
     if results and results["tracks"]["items"]:
         track = results["tracks"]["items"][0]
-        album_cover_url = track["album"]["images"][0]["url"]
-        return album_cover_url
-    else:
-        return "https://i.postimg.cc/0QNxYz4V/social.png"
+        return track["album"]["images"][0]["url"]
+    return "https://i.postimg.cc/0QNxYz4V/social.png"
 
 def recommend(song):
     index = music[music['song'] == song].index[0]
     distances = sorted(list(enumerate(similarity[index])), reverse=True, key=lambda x: x[1])
-    recommended_music_names = []
-    recommended_music_posters = []
+    names, posters = [], []
     for i in distances[1:6]:
         artist = music.iloc[i[0]].artist
-        recommended_music_posters.append(get_song_album_cover_url(music.iloc[i[0]].song, artist))
-        recommended_music_names.append(music.iloc[i[0]].song)
-    return recommended_music_names, recommended_music_posters
+        posters.append(get_song_album_cover_url(music.iloc[i[0]].song, artist))
+        names.append(music.iloc[i[0]].song)
+    return names, posters
 
-# --------------------------
+
 # Playlist Functions
-# --------------------------
+
 PLAYLIST_FILE = "playlists.json"
 
 def load_playlist():
@@ -111,9 +108,9 @@ def remove_from_playlist(index):
         save_playlist(playlist)
         st.session_state["playlist"] = load_playlist()
 
-# --------------------------
+
 # Event Management Functions
-# --------------------------
+
 EVENT_FILE = "events.json"
 
 def load_events():
@@ -163,9 +160,9 @@ def delete_event(event_id):
     save_events(events)
     st.session_state["events"] = events
 
-# --------------------------
+
 # Streamlit UI
-# --------------------------
+
 st.set_page_config(page_title="Musicloud", layout="wide")
 st.title("Musicloud")
 
@@ -176,52 +173,60 @@ if "events" not in st.session_state:
 
 menu = st.sidebar.selectbox("Menu", ["Music Recommender", "Playlist Management", "Event Management"])
 
+
+# Music Recommender Section
+
 if menu == "Music Recommender":
     selected_song = st.selectbox("Search or type a song", music_list)
-
     if st.button("Show Recommendation"):
-        recommended_music_names, recommended_music_posters = recommend(selected_song)
-        col1, col2, col3, col4, col5 = st.columns(5)
-        for idx, col in enumerate([col1, col2, col3, col4, col5]):
-            col.text(recommended_music_names[idx])
-            col.image(recommended_music_posters[idx])
+        names, posters = recommend(selected_song)
+        cols = st.columns(5)
+        for idx, col in enumerate(cols):
+            col.text(names[idx])
+            col.image(posters[idx])
             if col.button(f"Add to Playlist", key=f"playlist_{idx}"):
-                artist = music[music['song'] == recommended_music_names[idx]]["artist"].values[0]
-                add_to_playlist(recommended_music_names[idx], artist)
-                st.success(f"'{recommended_music_names[idx]}' added to your playlist!")
+                artist = music[music['song'] == names[idx]]["artist"].values[0]
+                add_to_playlist(names[idx], artist)
+                st.success(f"'{names[idx]}' added to your playlist!")
+
+
+# Playlist Management Section
 
 elif menu == "Playlist Management":
     st.header("Playlist Management")
-    playlist_action = st.radio("Choose Action", ["View Playlist", "Clear Playlist"])
-
-    if playlist_action == "View Playlist":
+    action = st.radio("Choose Action", ["View Playlist", "Clear Playlist"])
+    if action == "View Playlist":
         playlist = st.session_state["playlist"]
         if playlist:
             st.subheader("Your Playlist")
             for idx, item in enumerate(playlist):
                 st.write(f"**{idx+1}. {item['song']}** — {item['artist']} 🎧 [Listen on Spotify](https://open.spotify.com/search/{item['song']}%20{item['artist']})")
-            st.write("---")
         else:
             st.info("Your playlist is empty.")
-
-    elif playlist_action == "Clear Playlist":
+    elif action == "Clear Playlist":
         if st.button("Clear All Playlist"):
             save_playlist([])
             st.session_state["playlist"] = []
             st.success("Playlist cleared successfully!")
 
+
+# Event Management Section
+
 elif menu == "Event Management":
     st.header("Event Management System")
-    event_action = st.radio("Choose Action", ["Add Event", "View Events"])
+    action = st.radio("Choose Action", ["Add Event", "View Events"])
 
-    if event_action == "Add Event":
+    if action == "Add Event":
         st.subheader("Add New Event")
-        name = st.text_input("Event Name")
-        time = st.text_input("Event Time (YYYY-MM-DD HH:MM)")
-        capacity = st.number_input("Capacity", min_value=1, step=1)
-        charges = st.number_input("Charges", min_value=0, step=1)
+        # FIX: Wrap in st.form to prevent reload until submission
+        with st.form(key="add_event_form"):
+            name = st.text_input("Event Name")
+            time = st.text_input("Event Time (YYYY-MM-DD HH:MM)")
+            capacity = st.number_input("Capacity", min_value=1, step=1)
+            charges = st.number_input("Charges", min_value=0, step=1)
+            submitted = st.form_submit_button("Add Event")
 
-        if st.button("Add Event"):
+        if submitted:
             if name and time:
                 try:
                     datetime.strptime(time, "%Y-%m-%d %H:%M")
@@ -232,7 +237,7 @@ elif menu == "Event Management":
             else:
                 st.error("⚠ Please fill all fields")
 
-    elif event_action == "View Events":
+    elif action == "View Events":
         st.subheader("Available Events")
         events = st.session_state.get("events", load_events())
         if not events:
@@ -261,6 +266,6 @@ elif menu == "Event Management":
                 if is_full:
                     st.warning("⚠ This event is full. No more participants can join.")
 
-                if st.button(f"🗑 Delete {event['event_name']}", key=f"delete_{event['event_id']}"):
+                if st.button(f"Delete {event['event_name']}", key=f"delete_{event['event_id']}"):
                     delete_event(event["event_id"])
-                    st.success(f"🗑 Event '{event['event_name']}' deleted successfully!")
+                    st.success(f"Event '{event['event_name']}' deleted successfully!")
