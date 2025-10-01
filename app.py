@@ -20,23 +20,26 @@ URL_SIMILARITY = "https://drive.google.com/uc?export=download&id=1vA4AeZu8eTLc6b
 def download_file(url, local_path):
     if not os.path.exists(local_path):
         r = requests.get(url, stream=True)
-        with open(local_path, "wb") as f:
-            for chunk in r.iter_content(chunk_size=8192):
-                if chunk:
-                    f.write(chunk)
-
-
-# Download necessary files
+        if r.status_code == 200:
+            with open(local_path, "wb") as f:
+                for chunk in r.iter_content(chunk_size=8192):
+                    if chunk:
+                        f.write(chunk)
+        else:
+            st.error(f"Failed to download {local_path}")
+            st.stop()
 
 download_file(URL_DF, "df.pkl")
 download_file(URL_SIMILARITY, "similarity.pkl")
 
-
-# Load models/data
+if not os.path.exists("df.pkl") or not os.path.exists("similarity.pkl"):
+    st.error("Required model files not downloaded.")
+    st.stop()
 
 music = joblib.load("df.pkl")
 similarity = joblib.load("similarity.pkl")
 music_list = music['song'].values
+
 
 
 # Load environment variables
