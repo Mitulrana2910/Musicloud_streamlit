@@ -19,15 +19,11 @@ URL_SIMILARITY = "https://drive.google.com/uc?export=download&id=1vA4AeZu8eTLc6b
 # --------------------------
 def download_file(url, local_path):
     if not os.path.exists(local_path):
-        st.info(f"Downloading {local_path}...")
         r = requests.get(url, stream=True)
         with open(local_path, "wb") as f:
             for chunk in r.iter_content(chunk_size=8192):
                 if chunk:
                     f.write(chunk)
-        st.success(f"{local_path} downloaded.")
-    else:
-        st.info(f"{local_path} already exists.")
 
 # --------------------------
 # Download necessary files
