@@ -120,6 +120,13 @@ The project uses `spotify_millsongdata.csv` containing:
 - **Events**: Stored in `events.json`
 - **Processed Data**: Stored in `df.pkl` and `similarity.pkl`
 
+## 🌐 Hosting
+
+- **Render**: Go to  `https://render.com/`
+- **Link**: Click `https://musicloud-7zus.onrender.com`
+# Note
+- It may take some time to load the site as render is third-party hosting site.
+  
 ## 🤝 Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
