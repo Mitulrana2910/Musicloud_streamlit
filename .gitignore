@@ -13,6 +13,7 @@ env/
 .venv/
 .env/
 
+*.pkl
 
 # Streamlit cache
 .streamlit/
