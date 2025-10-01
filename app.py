@@ -116,13 +116,14 @@ def participate(event_id, user_name):
     events = st.session_state.get("events", load_events())
     for event in events:
         if event["event_id"] == event_id:
-            if user_name not in event["participants"]:  # Avoid duplicates
-                event["participants"].append(user_name)
-                event["capacity"] += 1  # Increase capacity
-                save_events(events)
-                st.session_state["events"] = events
-                return True
-            return False
+            if user_name in event["participants"]:
+                return False  # Already joined
+            if len(event["participants"]) >= event["capacity"]:
+                return False  # Event full
+            event["participants"].append(user_name)
+            save_events(events)
+            st.session_state["events"] = events
+            return True
     return False
 
 def delete_event(event_id):
@@ -219,31 +220,67 @@ elif menu == "Event Management":
             else:
                 st.error("⚠ Please fill all fields")
 
+
     elif event_action == "View Events":
+
         st.subheader("Available Events")
+
         events = st.session_state.get("events", load_events())
+
         if not events:
+
             st.info("No events available.")
+
         else:
+
             for event in events:
+
                 st.markdown(f"### {event['event_name']}")
+
                 st.write(f"Time: {event['event_time']}")
+
                 st.write(f"Participants: {len(event['participants'])} / Capacity: {event['capacity']}")
+
                 st.write(f"Charges: ${event['charges']}")
 
+                # Check if event is full
+
+                is_full = len(event["participants"]) >= event["capacity"]
+
                 with st.form(key=f"participate_form_{event['event_id']}"):
+
                     user_name = st.text_input("Enter your name to participate", key=f"name_{event['event_id']}")
-                    submitted = st.form_submit_button(f"Participate in {event['event_name']}")
+
+                    submitted = st.form_submit_button(
+
+                        f"Participate in {event['event_name']}",
+
+                        disabled=is_full
+
+                    )
+
                     if submitted:
+
                         if user_name:
+
                             if participate(event["event_id"], user_name):
+
                                 st.success(f"You joined {event['event_name']}!")
+
                             else:
-                                st.error("You are already participating in this event!")
+
+                                st.error("You are already participating or event is full!")
+
                         else:
+
                             st.warning("⚠ Please enter your name to participate")
 
+                if is_full:
+                    st.warning("⚠ This event is full. No more participants can join.")
+
                 # Delete Event Button
+
                 if st.button(f"🗑 Delete {event['event_name']}", key=f"delete_{event['event_id']}"):
                     delete_event(event["event_id"])
+
                     st.success(f"🗑 Event '{event['event_name']}' deleted successfully!")
