@@ -1,3 +1,4 @@
+import joblib
 import pandas as pd
 import pickle
 import nltk
@@ -38,5 +39,7 @@ matrix = tfidvector.fit_transform(df['text'])
 similarity = cosine_similarity(matrix)
 
 # 7. Save as pickle files
-pickle.dump(df, open('df.pkl', 'wb'))
-pickle.dump(similarity, open('similarity.pkl', 'wb'))
+
+joblib.dump(df, 'df.pkl', compress=3)
+joblib.dump(similarity, 'similarity.pkl', compress=9)
+
